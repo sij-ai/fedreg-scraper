@@ -1,0 +1,33 @@
+# Configure your MinIO connection and access details
+minio:
+  endpoint: "s3.domain.tld"
+  access_key: "yOUrAcCEsSKeY"
+  secret_key: "yOUrSeCREtKEy"
+  region: "us-west-rack-1"
+  secure: true
+
+# Configure your bucket and the parent folder for all agencies within that bucket
+bucket_name: "bucket"
+parent_folder: "federal-register"
+
+# List the agencies you wish to scrape here
+agencies:
+  - "APHIS"
+  - "ARCTIC"
+  - "BLM"
+  - "BOEM"
+  - "BOR"
+  - "BSEE"
+  - "CEQ"
+  - "COE"
+  - "EPA"
+  - "FERC"
+  - "FS"
+  - "FWS"
+  - "MMC"
+  - "NOAA"
+  - "NRCS"
+  - "NPS"
+  - "OSM"
+  - "USDA"
+  - "USGS"
