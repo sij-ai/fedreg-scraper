@@ -4,6 +4,13 @@ import yaml
 from io import BytesIO
 from minio import Minio
 import os
+import argparse
+
+def parse_args():
+    parser = argparse.ArgumentParser(description='Scrape Federal Register documents')
+    parser.add_argument('--all', action='store_true', 
+                       help='Scrape all documents, even if some already exist')
+    return parser.parse_args()
 
 def load_config(config_path="config.yaml"):
     with open(config_path, 'r') as f:
@@ -36,6 +43,9 @@ def save_abstracts_to_minio(client, bucket_name, abstracts_path, abstracts_dict)
     )
 
 def main():
+    # Parse command line arguments
+    args = parse_args()
+    
     # Load config
     config = load_config("config.yaml")
     
@@ -72,9 +82,6 @@ def main():
 
     # Sort agencies by their short name or name
     all_fr_agencies.sort(key=lambda x: x['short_name'] if x['short_name'] else x['name'])
-    
-    # We will track newly fetched abstracts in this dict
-    new_abstracts = {}
 
     # Iterate through agencies from the config
     for agency_keyword in agencies_to_scrape:
@@ -108,6 +115,9 @@ def main():
             data = response.json()
             next_page_url = data.get('next_page_url', None)
 
+            # Flag to track if we should move to next agency
+            skip_to_next_agency = False
+
             # Loop through the documents and download PDFs if not already uploaded
             for result in data['results']:
                 pdf_url = result.get('pdf_url')
@@ -128,7 +138,14 @@ def main():
                 # Check if the object already exists on MinIO
                 try:
                     client.stat_object(bucket_name, pdf_object_path)
-                    print(f"Skipping {pdf_filename}, already exists on MinIO.")
+                    print(f"Found existing document: {pdf_filename}")
+                    if not args.all:
+                        print(f"Stopping pagination for {agency_name} - existing documents found.")
+                        skip_to_next_agency = True
+                        break
+                    else:
+                        print("Continuing due to --all flag...")
+                    continue
                 except Exception:
                     print(f"Downloading and uploading {pdf_filename}...")
                     pdf_response = requests.get(pdf_url)
@@ -155,10 +172,12 @@ def main():
                 })
                 existing_abstracts[document_number] = existing_abstract_entry
 
+            if skip_to_next_agency:
+                break
+
     # Finally, upload the updated abstracts to MinIO
     save_abstracts_to_minio(client, bucket_name, abstracts_path, existing_abstracts)
     print("\nAll done.")
 
 if __name__ == "__main__":
     main()
-
